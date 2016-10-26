@@ -1,0 +1,18 @@
+<ion-view style="background: #0097ff">
+  
+  <h1 class="category-title">{{category.name}}</h1>
+
+  <ion-content>
+    <div class="row responsive-sm padding">
+      <div class="col-50 col-offset-25" style="margin-top: 150px; background: #0097ff; box-shadow: 0px 0px 50px #0097ff;">
+        <div class="category-item-container shadow" ng-repeat="category in category.children" ng-style="{'background-image' : 'url( {{category.imageUrl}} )'}">
+          <div ng-click="setCategory(category)" class="category-item">
+            <h2>{{category.name}}</h2>
+            <p>view products <i class="icon ion-chevron-right"></i></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ion-content>
+
+</ion-view>

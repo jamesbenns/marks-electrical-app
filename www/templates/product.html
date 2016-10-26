@@ -1,0 +1,121 @@
+<ion-view>
+  <ion-content class="product-page-margin" style="background: #fff">
+
+	<ion-slide-box on-slide-changed="slideHasChanged($index)" class="product-slide-box" ng-class="{shrink: tab !== 1}">
+    <ion-slide>
+      <div class="spinner-container">
+        <ion-spinner icon="crescent" class="text-center spinner-placeholder"></ion-spinner>
+      </div>
+      <img ng-src="http://s3-eu-west-1.amazonaws.com/media.markselectrical.co.uk/item-images/zoom/{{currentProduct.url.split('_')[0]}}.jpg" class="product-img">
+    </ion-slide>  
+    <ion-slide ng-repeat="image in productData">
+      <div class="spinner-container">
+        <ion-spinner icon="crescent" class="text-center spinner-placeholder"></ion-spinner>
+      </div>
+      <img ng-src="{{image}}" class="product-img">
+    </ion-slide>
+	</ion-slide-box>
+<div ng-show="tab == 1">
+
+	  <div class="item item-text-wrap">
+      <h2>{{currentProduct.name}}</h2>
+      <p>£{{currentProduct.price}} <span ng-show="currentProduct.stock" class="balanced"> <i class="icon ion-checkmark"></i>In stock</span><span ng-hide="currentProduct.stock" class="assertive"> <i class="icon ion-close"></i>Out of stock</span></p>
+      <div ng-if="currentProduct.rating"><stars rating="currentProduct.rating"></stars> ({{currentProduct.numberOfReviews}})</div>
+    </div>
+    <div class="item">
+      <button class="button button-block button-me" style="margin: 0px;" ng-click="addToCart(product)" ng-disabled="checkCart(currentProduct.url.split('_')[0])">
+        <span ng-show="checkCart(currentProduct.url.split('_')[0])"><i class="icon ion-checkmark"></i> Added to your Cart</span><span ng-hide="checkCart(currentProduct.url.split('_')[0])">Add to Cart</span>
+      </button>
+    </div>
+
+    <div class="list">
+      <div class="item item-divider">
+        Summary
+      </div>
+      <div id="summary" ng-bind-html="summary"></div>
+      <div class="item item-divider" ng-if="description">
+        Description
+      </div>
+      <div id="description" ng-if="description" ng-bind-html="description" class="item text-overflow"></div>
+    </div>
+
+</div>
+
+</div>
+<div ng-show="tab == 2">
+
+<div class="list">
+
+  <div class="item item-divider">
+    Reviews
+  </div>
+
+  <div class="item text" href="#" ng-if="reviewData.length" ng-repeat="review in reviewData">
+  <p class="text-left"><stars rating="review.Rating"></stars></p>
+  <h2>{{review.UserNickname}}, {{review.UserLocation}} - <span am-time-ago="review.SubmissionTime | amParse:'YYYY-MM-DD HH:mm:ss'"></span></h2>
+	<p>{{review.ReviewText}}</p>
+  </div>
+
+  <div ng-if="!reviewData.length" class="item text text-center">
+    <h2>No Reviews</h2>
+  </div>
+
+</div>
+
+</div>
+<div ng-show="tab == 3">
+
+<div class="list">
+
+  <div class="item item-divider">
+    Delivery
+  </div>
+
+  <div class="item text" href="#">
+	<p>This item is In Stock at our warehouse and ready for immediate delivery.</p>
+
+<p>We usually offer next day delivery to most parts of England and Wales, and unlike many of our competitors we also offer free weekend deliveries.</p>
+
+<p>In the East Midlands, we also provide same day delivery, subject to availability.</p>
+
+<p>We’ll give you a 2 hour timeslot the evening before your delivery date, so you'll know what time we’ll be at your address. (Note: For evening/same day deliveries, you will receive your timeslot in the afternoon on the day of your delivery.)</p>
+  </div>
+  <div class="item item-divider">
+    Click and Collect from our Warehouse
+  </div>
+
+  <div class="item text" href="#">
+	<p>This item is In Stock at our warehouse and ready for immediate delivery.</p>
+
+<p>We usually offer next day delivery to most parts of England and Wales, and unlike many of our competitors we also offer free weekend deliveries.</p>
+
+<p>In the East Midlands, we also provide same day delivery, subject to availability.</p>
+
+<p>We’ll give you a 2 hour timeslot the evening before your delivery date, so you'll know what time we’ll be at your address. (Note: For evening/same day deliveries, you will receive your timeslot in the afternoon on the day of your delivery.)</p>
+  </div>
+
+
+</div>
+
+</div>
+
+  </ion-content>
+
+  <div class="tabs-light">
+    <div class="tabs tabs-striped tabs-icon-top">
+      <a class="tab-item" ng-class="{active: tab == 1}" ng-click="tab = 1">
+        <i class="icon ion-pricetags"></i>
+        Specs
+      </a>
+      <a class="tab-item" ng-class="{active: tab == 2}" ng-click="tab = 2">
+        <i class="icon ion-star"></i>
+        Reviews
+      </a>
+      <a class="tab-item" ng-class="{active: tab == 3}" ng-click="tab = 3">
+        <i class="icon ion-information-circled"></i>
+        More
+      </a>
+    </div>
+  </div>
+
+</ion-view>

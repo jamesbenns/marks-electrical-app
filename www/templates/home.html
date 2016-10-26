@@ -1,0 +1,60 @@
+<ion-view hide-back-button="true">
+        
+        <div class="search padding">
+            <input type="text" ng-blur="on = false" ng-focus="on = true" placeholder="Search" ng-keyup="searchFunc()" ng-model="home.search"/>
+        </div>
+
+        <div ng-show="home.search || on" style="position: fixed; width: 100%; left: 0px; top: 98px; bottom: 0px; overflow: scroll; z-index: 1; background: #3f3f36;">
+            <div style="text-align: center; color: #fff;">
+                <ion-spinner ng-if="loading && home.search.length > 1" class="spinner-light" icon="crescent"></ion-spinner>
+                <div ng-if="!loading && !home.results && home.search.length > 1">Sorry, no results</div>
+                <div ng-if="home.search.length < 2" style="color: #ccc;">Type two or more characters</div>
+            </div>
+            <div ng-if="home.results">
+              <div class="row padding">
+                <div class="list">
+                  <a class="item item-thumbnail-left result" ng-click="setProduct(item)" ng-repeat="item in home.results">
+                      <img href="#app/product/{{item.id}}/{{item.name}}" ng-src="http://s3-eu-west-1.amazonaws.com/media.markselectrical.co.uk/item-images/thumb/NP7557D.jpg">
+                      <h2>{{item.name}}</h2>
+                      <p>£{{item.price}}, <span ng-show="item.stock" class="balanced">In stock!</span><span ng-hide="item.stock" class="assertive">Out of stock!</span></p>
+                  </a>
+                </div>
+              </div>
+              <div style="text-align: center; color: #ccc; margin-top: -10px;" ng-click="home.search = ''">
+                <i class="ion-close" style="font-size: 30px;"></i>
+              </div>
+            </div>
+        </div>
+
+    <ion-content style="background: #0097ff; padding-top: 55px;">
+
+        <div class="row responsive-sm" style="padding: 0px;">
+          <div class="col-50 col-offset-25" style="margin-bottom: 0px;">
+            <ion-slide-box ng-if="promotions" on-slide-changed="slideHasChanged($index)">
+              <ion-slide class="padding" ng-repeat="promotion in promotions">
+                <a ng-click="promoClick(promotion.type, promotion.url)"><img class="promo-img" ng-src="{{promotion.image}}"></a>
+              </ion-slide>
+            </ion-slide-box>
+          </div>
+        </div>
+
+        <div class="row responsive-sm padding">
+          <div class="col-50 col-offset-25">
+            <div ng-if="!categories" style="text-align: center; padding-top: 20px;">
+                <ion-spinner class="spinner-light" icon="crescent"></ion-spinner>
+            </div>
+          <div class="category-item-container shadow" ng-repeat="category in categories" ng-style="{'background-image' : 'url( {{category.imageUrl}} )'}">
+            <div ng-click="setCategory(category)" class="category-item">
+              <h2>{{category.name}}</h2>
+              <p>view products <i class="icon ion-chevron-right"></i></p>
+            </div>
+          </div>
+          <div class="category-item-container shadow clearance">
+            <div ng-click="setCategory({url: 'clearance', name: 'Clearance'})" class="category-item">
+              <h1>Clearance</h1>
+            </div>
+          </div>
+          </div>
+        </div>
+    </ion-content>
+</ion-view>

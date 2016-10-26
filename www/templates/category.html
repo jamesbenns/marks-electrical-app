@@ -1,0 +1,60 @@
+<ion-view style="background: #0097ff">
+    
+    <h1 class="category-title">{{location().name}}</h1>
+
+    <ion-content>
+        <div class="row responsive-sm padding">
+            <div class="col-50 col-offset-25">
+                <ion-list>
+                
+                    <div style="background: #0097ff; box-shadow: 0px 0px 50px #0097ff;">
+                        <div style="border-radius: 5px; overflow: hidden; margin-top: 150px;">
+                            <!--<div class="item item-divider text-center">
+                                {{location().categoryName}} <i class="icon ion-ios-arrow-right"></i>
+                                {{location().subCategoryName}} ({{numberOfItems}})
+                            </div>-->
+                            <div class="item" style="min-height: 88px;">
+                                <rzslider ng-if="init" rz-slider-model="minRangeSlider.minValue" rz-slider-high="minRangeSlider.maxValue" rz-slider-options="minRangeSlider.options"></rzslider>
+                            </div>
+                            <ion-radio ng-model="list.order" ng-value="'popular-order-asc'" ng-change="orderChange()">Popularity</ion-radio>
+                            <ion-radio ng-model="list.order" ng-value="'price-order-desc'" ng-change="orderChange()">Price High to Low</ion-radio>
+                            <ion-radio ng-model="list.order" ng-value="'price-order-asc'" ng-change="orderChange()">Price Low to High</ion-radio>
+                        </div>
+                        <div ng-if="spin" style="text-align: center; padding-top: 20px;">
+                            <ion-spinner class="spinner-light" icon="crescent"></ion-spinner>
+                        </div>
+                        <div class="list card product-card" ng-repeat="product in products" ng-if="product.price >= minRangeSlider.minValue && product.price <= minRangeSlider.maxValue">
+                            <div class="item category-product-img item-image">
+                                <div style="z-index: -1; padding-top: 100%; position: relative;">
+                                    <ion-spinner icon="crescent" class="text-center spinner-placeholder"></ion-spinner>
+                                </div>
+                                <img ng-src="http://s3-eu-west-1.amazonaws.com/media.markselectrical.co.uk/item-images/zoom/{{product.url.split('_')[0]}}.jpg"/>
+                            </div>
+                            <div class="item item-text-wrap" ng-click="setProduct(product)">
+                                <h2 class="text-overflow">{{product.name}}</h2>
+                                <p>
+                                    £{{product.price}}  
+                                    <span ng-show="product.stock" class="balanced">
+                                        <i class="icon ion-checkmark"></i>
+                                        In stock
+                                    </span>
+                                    <span ng-hide="product.stock" class="assertive">
+                                        <i class="icon ion-close"></i>
+                                        Out of stock
+                                    </span>
+                                </p>
+                                <div ng-if="product.rating">
+                                    <stars rating="product.rating"></stars>
+                                    ({{product.numberOfReviews}})
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h4 class="text-center" style="color: #fff;" ng-hide="more">No More Products</h4>
+                </ion-list>
+            </div>
+        </div>
+        <ion-infinite-scroll ng-if="loadMore && more" on-infinite="loadMore()" class="spinner-light" spinner="crescent"></ion-infinite-scroll>
+    </ion-content>
+</ion-view>
