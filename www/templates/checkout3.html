@@ -1,0 +1,46 @@
+            <div class="list">
+               <div class="item item-divider">
+                  Confirm Order
+               </div>
+               <div ng-repeat="product in cart">
+                  <div class="item item-thumbnail-left item-text-wrap">
+                     <img ng-src="{{product.images[0]}}">
+                     <h2>{{product.name}}</h2>
+                     <p>Price: {{product.price | currency : '£'}}</p>
+                     <p>Quantity: {{product.quantity}}</p>
+                  </div>
+               </div>
+            </div>
+            <div class="list" ng-if="cartHasAddons()">
+               <div class="item item-divider">
+                  Warranties and add-ons
+               </div>
+               <div ng-repeat="product in cart" ng-if="product.warrranties">
+                  <li class="item item-checkbox" ng-repeat="warranty in product.warrranties">
+                     <div class="checkbox">
+                        <input type="checkbox" ng-model="warranty.on">
+                     </div>
+                     <div stop-event ng-click="moreInfo(warranty.name, warranty.price)">
+                        <h2>Warranty for {{product.name}}</h2>
+                        <p>{{warranty.price | currency : '£'}}</p>
+                     </div>
+                  </li>
+               </div>
+               <div ng-repeat="product in cart" ng-if="product.services">
+                  <li class="item item-checkbox" ng-repeat="service in product.services">
+                     <div class="checkbox">
+                        <input type="checkbox" ng-model="service.on">
+                     </div>
+                     <div>
+                        <h2>{{service.name}} for {{product.name}}</h2>
+                        <p>{{service.price | currency : '£'}}</p>
+                     </div>
+                  </li>
+               </div>
+            </div>
+            <div class="list">
+               <div class="item">
+                  <b>Total: {{totalWithWarranties() | currency : '£'}}</b>
+               </div>
+            </div>
+            <button class="button button-block button-me add-to-cart" ng-click="setStep(4)">Continue</button>

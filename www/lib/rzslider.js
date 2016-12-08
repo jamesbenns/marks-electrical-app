@@ -1,7 +1,7 @@
-/*! angularjs-slider - v5.4.3 - 
+/*! angularjs-slider - v5.8.7 - 
  (c) Rafal Zajac <rzajac@gmail.com>, Valentin Hervieu <valentin@hervieu.me>, Jussi Saarivirta <jusasi@gmail.com>, Angelin Sirbu <angelin.sirbu@gmail.com> - 
  https://github.com/angular-slider/angularjs-slider - 
- 2016-08-07 */
+ 2016-11-09 */
 /*jslint unparam: true */
 /*global angular: false, console: false, define, module */
 (function(root, factory) {
@@ -15,7 +15,11 @@
     // only CommonJS-like environments that support module.exports,
     // like Node.
     // to support bundler like browserify
-    module.exports = factory(require('angular'));
+    var angularObj = require('angular');
+    if ((!angularObj || !angularObj.module) && typeof angular != 'undefined') {
+      angularObj = angular;
+    }
+    module.exports = factory(angularObj);
   } else {
     // Browser globals (root is window)
     factory(root.angular);
@@ -48,11 +52,13 @@
       showSelectionBarFromValue: null,
       hidePointerLabels: false,
       hideLimitLabels: false,
+      autoHideLimitLabels: true,
       readOnly: false,
       disabled: false,
       interval: 350,
       showTicks: false,
       showTicksValues: false,
+      ticksArray: null,
       ticksTooltip: null,
       ticksValuesTooltip: null,
       vertical: false,
@@ -71,7 +77,10 @@
       rightToLeft: false,
       boundPointerLabels: true,
       mergeRangeLabelsIfSame: false,
-      customTemplateScope: null
+      customTemplateScope: null,
+      logScale: false,
+      customValueToPosition: null,
+      customPositionToValue: null
     };
     var globalOptions = {};
 
@@ -195,7 +204,7 @@
         active: false,
         value: 0,
         difference: 0,
-        offset: 0,
+        position: 0,
         lowLimit: 0,
         highLimit: 0
       };
@@ -302,6 +311,11 @@
        * @type {boolean}
        */
       this.cmbLabelShown = false;
+
+      /**
+       * Internal variable to keep track of the focus element
+       */
+      this.currentFocusElement = null;
 
       // Slider DOM elements wrapped in jqLite
       this.fullBar = null; // The whole slider bar
@@ -412,6 +426,7 @@
         this.scope.$on('$destroy', function() {
           self.unbindEvents();
           angular.element($window).off('resize', calcDimFn);
+          self.currentFocusElement = null;
         });
       },
 
@@ -423,9 +438,17 @@
             index = i;
             break;
           }
-          else if (angular.isObject(step) && step.value === modelValue) {
-            index = i;
-            break;
+          else if (angular.isDate(step)) {
+            if (step.getTime() === modelValue.getTime()) {
+              index = i;
+              break;
+            }
+          }
+          else if (angular.isObject(step)) {
+            if (angular.isDate(step.value) && step.value.getTime() === modelValue.getTime() || step.value === modelValue) {
+              index = i;
+              break;
+            }
           }
         }
         return index;
@@ -455,6 +478,8 @@
 
       getStepValue: function(sliderValue) {
         var step = this.options.stepsArray[sliderValue];
+        if (angular.isDate(step))
+          return step;
         if (angular.isObject(step))
           return step.value;
         return step;
@@ -490,7 +515,7 @@
         if (this.range)
           this.syncHighValue();
         this.setMinAndMax();
-        this.updateLowHandle(this.valueToOffset(this.lowValue));
+        this.updateLowHandle(this.valueToPosition(this.lowValue));
         this.updateSelectionBar();
         this.updateTicksScale();
         this.updateAriaAttributes();
@@ -506,7 +531,7 @@
         this.syncLowValue();
         this.syncHighValue();
         this.setMinAndMax();
-        this.updateHighHandle(this.valueToOffset(this.highValue));
+        this.updateHighHandle(this.valueToPosition(this.highValue));
         this.updateSelectionBar();
         this.updateTicksScale();
         this.updateCmbLabel();
@@ -535,9 +560,9 @@
           this.options.draggableRange = true;
         }
 
-        this.options.showTicks = this.options.showTicks || this.options.showTicksValues;
+        this.options.showTicks = this.options.showTicks || this.options.showTicksValues || !!this.options.ticksArray;
         this.scope.showTicks = this.options.showTicks; //scope is used in the template
-        if (angular.isNumber(this.options.showTicks))
+        if (angular.isNumber(this.options.showTicks) || this.options.ticksArray)
           this.intermediateTicks = true;
 
         this.options.showSelectionBar = this.options.showSelectionBar || this.options.showSelectionBarEnd
@@ -576,7 +601,7 @@
         else {
           this.customTrFn = function(modelValue) {
             if (this.options.bindIndexForStepsArray)
-              return this.getStepValue(modelValue)
+              return this.getStepValue(modelValue);
             return modelValue;
           };
         }
@@ -604,6 +629,14 @@
         this.manageEventsBindings();
         this.setDisabledState();
         this.calcViewDimensions();
+        this.refocusPointerIfNeeded();
+      },
+
+      refocusPointerIfNeeded: function() {
+        if (this.currentFocusElement) {
+          this.onPointerFocus(this.currentFocusElement.pointer, this.currentFocusElement.ref);
+          this.focusElement(this.currentFocusElement.pointer)
+        }
       },
 
       /**
@@ -653,7 +686,7 @@
 
         }, this);
 
-        // Initialize offset cache properties
+        // Initialize position cache properties
         this.selBar.rzsp = 0;
         this.minH.rzsp = 0;
         this.maxH.rzsp = 0;
@@ -747,14 +780,14 @@
        * @returns {undefined}
        */
       initHandles: function() {
-        this.updateLowHandle(this.valueToOffset(this.lowValue));
+        this.updateLowHandle(this.valueToPosition(this.lowValue));
 
         /*
          the order here is important since the selection bar should be
          updated after the high handle but before the combined label
          */
         if (this.range)
-          this.updateHighHandle(this.valueToOffset(this.highValue));
+          this.updateHighHandle(this.valueToPosition(this.highValue));
         this.updateSelectionBar();
         if (this.range)
           this.updateCmbLabel();
@@ -816,6 +849,8 @@
         this.precision = +this.options.precision;
 
         this.minValue = this.options.floor;
+        if (this.options.logScale && this.minValue === 0)
+          throw Error("Can't use floor=0 with logarithmic scale");
 
         if (this.options.enforceStep) {
           this.lowValue = this.roundStep(this.lowValue);
@@ -911,6 +946,10 @@
           this.updateFloorLab();
           this.updateCeilLab();
           this.initHandles();
+          var self = this;
+          $timeout(function() {
+            self.updateTicksScale();
+          });
         }
       },
 
@@ -921,48 +960,61 @@
        */
       updateTicksScale: function() {
         if (!this.options.showTicks) return;
-        var step = this.step;
-        if (this.intermediateTicks)
-          step = this.options.showTicks;
-        var ticksCount = Math.round((this.maxValue - this.minValue) / step) + 1;
-        this.scope.ticks = [];
-        for (var i = 0; i < ticksCount; i++) {
-          var value = this.roundStep(this.minValue + i * step);
+
+        var ticksArray = this.options.ticksArray || this.getTicksArray(),
+          translate = this.options.vertical ? 'translateY' : 'translateX',
+          self = this;
+
+        if (this.options.rightToLeft)
+          ticksArray.reverse();
+
+        this.scope.ticks = ticksArray.map(function(value) {
+          var position = self.valueToPosition(value);
+
+          if (self.options.vertical)
+            position = self.maxPos - position;
+
           var tick = {
-            selected: this.isTickSelected(value)
+            selected: self.isTickSelected(value),
+            style: {
+              transform: translate + '(' + Math.round(position) + 'px)'
+            }
           };
-          if (tick.selected && this.options.getSelectionBarColor) {
-            tick.style = {
-              'background-color': this.getSelectionBarColor()
-            };
+          if (tick.selected && self.options.getSelectionBarColor) {
+            tick.style['background-color'] = self.getSelectionBarColor();
           }
-          if (!tick.selected && this.options.getTickColor) {
-            tick.style = {
-              'background-color': this.getTickColor(value)
+          if (!tick.selected && self.options.getTickColor) {
+            tick.style['background-color'] = self.getTickColor(value);
+          }
+          if (self.options.ticksTooltip) {
+            tick.tooltip = self.options.ticksTooltip(value);
+            tick.tooltipPlacement = self.options.vertical ? 'right' : 'top';
+          }
+          if (self.options.showTicksValues) {
+            tick.value = self.getDisplayValue(value, 'tick-value');
+            if (self.options.ticksValuesTooltip) {
+              tick.valueTooltip = self.options.ticksValuesTooltip(value);
+              tick.valueTooltipPlacement = self.options.vertical ? 'right' : 'top';
             }
           }
-          if (this.options.ticksTooltip) {
-            tick.tooltip = this.options.ticksTooltip(value);
-            tick.tooltipPlacement = this.options.vertical ? 'right' : 'top';
-          }
-          if (this.options.showTicksValues) {
-            tick.value = this.getDisplayValue(value, 'tick-value');
-            if (this.options.ticksValuesTooltip) {
-              tick.valueTooltip = this.options.ticksValuesTooltip(value);
-              tick.valueTooltipPlacement = this.options.vertical ? 'right' : 'top';
-            }
-          }
-          if (this.getLegend) {
-            var legend = this.getLegend(value, this.options.id);
+          if (self.getLegend) {
+            var legend = self.getLegend(value, self.options.id);
             if (legend)
               tick.legend = legend;
           }
-          if (!this.options.rightToLeft) {
-            this.scope.ticks.push(tick);
-          } else {
-            this.scope.ticks.unshift(tick);
-          }
+          return tick;
+        });
+      },
+
+      getTicksArray: function() {
+        var step = this.step,
+          ticksArray = [];
+        if (this.intermediateTicks)
+          step = this.options.showTicks;
+        for (var value = this.minValue; value <= this.maxValue; value += step) {
+          ticksArray.push(value);
         }
+        return ticksArray;
       },
 
       isTickSelected: function(value) {
@@ -1014,13 +1066,13 @@
        * Update slider handles and label positions
        *
        * @param {string} which
-       * @param {number} newOffset
+       * @param {number} newPos
        */
-      updateHandles: function(which, newOffset) {
+      updateHandles: function(which, newPos) {
         if (which === 'lowValue')
-          this.updateLowHandle(newOffset);
+          this.updateLowHandle(newPos);
         else
-          this.updateHighHandle(newOffset);
+          this.updateHighHandle(newPos);
 
         this.updateSelectionBar();
         this.updateTicksScale();
@@ -1032,13 +1084,13 @@
        * Helper function to work out the position for handle labels depending on RTL or not
        *
        * @param {string} labelName maxLab or minLab
-       * @param newOffset
+       * @param newPos
        *
        * @returns {number}
        */
-      getHandleLabelPos: function(labelName, newOffset) {
+      getHandleLabelPos: function(labelName, newPos) {
         var labelRzsd = this[labelName].rzsd,
-          nearHandlePos = newOffset - labelRzsd / 2 + this.handleHalfDim,
+          nearHandlePos = newPos - labelRzsd / 2 + this.handleHalfDim,
           endOfBarPos = this.barDimension - labelRzsd;
 
         if (!this.options.boundPointerLabels)
@@ -1054,13 +1106,13 @@
       /**
        * Update low slider handle position and label
        *
-       * @param {number} newOffset
+       * @param {number} newPos
        * @returns {undefined}
        */
-      updateLowHandle: function(newOffset) {
-        this.setPosition(this.minH, newOffset);
+      updateLowHandle: function(newPos) {
+        this.setPosition(this.minH, newPos);
         this.translateFn(this.lowValue, this.minLab, 'model');
-        this.setPosition(this.minLab, this.getHandleLabelPos('minLab', newOffset));
+        this.setPosition(this.minLab, this.getHandleLabelPos('minLab', newPos));
 
         if (this.options.getPointerColor) {
           var pointercolor = this.getPointerColor('min');
@@ -1069,19 +1121,21 @@
           };
         }
 
-        this.shFloorCeil();
+        if (this.options.autoHideLimitLabels) {
+          this.shFloorCeil();
+        }
       },
 
       /**
        * Update high slider handle position and label
        *
-       * @param {number} newOffset
+       * @param {number} newPos
        * @returns {undefined}
        */
-      updateHighHandle: function(newOffset) {
-        this.setPosition(this.maxH, newOffset);
+      updateHighHandle: function(newPos) {
+        this.setPosition(this.maxH, newPos);
         this.translateFn(this.highValue, this.maxLab, 'high');
-        this.setPosition(this.maxLab, this.getHandleLabelPos('maxLab', newOffset));
+        this.setPosition(this.maxLab, this.getHandleLabelPos('maxLab', newPos));
 
         if (this.options.getPointerColor) {
           var pointercolor = this.getPointerColor('max');
@@ -1089,8 +1143,10 @@
             backgroundColor: pointercolor
           };
         }
+        if (this.options.autoHideLimitLabels) {
+          this.shFloorCeil();
+        }
 
-        this.shFloorCeil();
       },
 
       /**
@@ -1105,24 +1161,11 @@
         }
         var flHidden = false,
           clHidden = false,
-          isRTL = this.options.rightToLeft,
-          flrLabPos = this.flrLab.rzsp,
-          flrLabDim = this.flrLab.rzsd,
-          minLabPos = this.minLab.rzsp,
-          minLabDim = this.minLab.rzsd,
-          maxLabPos = this.maxLab.rzsp,
-          maxLabDim = this.maxLab.rzsd,
-          cmbLabPos = this.cmbLab.rzsp,
-          cmbLabDim = this.cmbLab.rzsd,
-          ceilLabPos = this.ceilLab.rzsp,
-          halfHandle = this.handleHalfDim,
-          isMinLabAtFloor = isRTL ? minLabPos + minLabDim >= flrLabPos - flrLabDim - 5 : minLabPos <= flrLabPos + flrLabDim + 5,
-          isMinLabAtCeil = isRTL ? minLabPos - minLabDim <= ceilLabPos + halfHandle + 10 : minLabPos + minLabDim >= ceilLabPos - halfHandle - 10,
-          isMaxLabAtFloor = isRTL ? maxLabPos >= flrLabPos - flrLabDim - halfHandle : maxLabPos <= flrLabPos + flrLabDim + halfHandle,
-          isMaxLabAtCeil = isRTL ? maxLabPos - maxLabDim <= ceilLabPos + 10 : maxLabPos + maxLabDim >= ceilLabPos - 10,
-          isCmbLabAtFloor = isRTL ? cmbLabPos >= flrLabPos - flrLabDim - halfHandle : cmbLabPos <= flrLabPos + flrLabDim + halfHandle,
-          isCmbLabAtCeil = isRTL ? cmbLabPos - cmbLabDim <= ceilLabPos + 10 : cmbLabPos + cmbLabDim >= ceilLabPos - 10
-
+          isMinLabAtFloor = this.isLabelBelowFloorLab(this.minLab),
+          isMinLabAtCeil = this.isLabelAboveCeilLab(this.minLab),
+          isMaxLabAtCeil = this.isLabelAboveCeilLab(this.maxLab),
+          isCmbLabAtFloor = this.isLabelBelowFloorLab(this.cmbLab),
+          isCmbLabAtCeil =  this.isLabelAboveCeilLab(this.cmbLab);
 
         if (isMinLabAtFloor) {
           flHidden = true;
@@ -1159,6 +1202,28 @@
         }
       },
 
+      isLabelBelowFloorLab: function(label) {
+        var isRTL = this.options.rightToLeft,
+          pos = label.rzsp,
+          dim = label.rzsd,
+          floorPos = this.flrLab.rzsp,
+          floorDim = this.flrLab.rzsd;
+        return isRTL ?
+        pos + dim >= floorPos - 2 :
+        pos <= floorPos + floorDim + 2;
+      },
+
+      isLabelAboveCeilLab: function(label) {
+        var isRTL = this.options.rightToLeft,
+          pos = label.rzsp,
+          dim = label.rzsd,
+          ceilPos = this.ceilLab.rzsp,
+          ceilDim = this.ceilLab.rzsd;
+        return isRTL ?
+        pos <= ceilPos + ceilDim + 2 :
+        pos + dim >= ceilPos - 2;
+      },
+
       /**
        * Update slider selection bar, combined label and range label
        *
@@ -1177,7 +1242,7 @@
         else {
           if (this.options.showSelectionBarFromValue !== null) {
             var center = this.options.showSelectionBarFromValue,
-              centerPosition = this.valueToOffset(center),
+              centerPosition = this.valueToPosition(center),
               isModelGreaterThanCenter = this.options.rightToLeft ? this.lowValue <= center : this.lowValue > center;
             if (isModelGreaterThanCenter) {
               dimension = this.minH.rzsp - centerPosition;
@@ -1278,6 +1343,9 @@
           this.showEl(this.minLab);
           this.hideEl(this.cmbLab);
         }
+        if (this.options.autoHideLimitLabels) {
+          this.shFloorCeil();
+        }
       },
 
       /**
@@ -1337,7 +1405,7 @@
       },
 
       /**
-       * Set element left/top offset depending on whether slider is horizontal or vertical
+       * Set element left/top position depending on whether slider is horizontal or vertical
        *
        * @param {jqLite} elem The jqLite wrapped DOM element
        * @param {number} pos
@@ -1346,7 +1414,7 @@
       setPosition: function(elem, pos) {
         elem.rzsp = pos;
         var css = {};
-        css[this.positionProperty] = pos + 'px';
+        css[this.positionProperty] = Math.round(pos) + 'px';
         elem.css(css);
         return pos;
       },
@@ -1376,22 +1444,9 @@
       setDimension: function(elem, dim) {
         elem.rzsd = dim;
         var css = {};
-        css[this.dimensionProperty] = dim + 'px';
+        css[this.dimensionProperty] = Math.round(dim) + 'px';
         elem.css(css);
         return dim;
-      },
-
-      /**
-       * Translate value to pixel offset
-       *
-       * @param {number} val
-       * @returns {number}
-       */
-      valueToOffset: function(val) {
-        if (this.options.rightToLeft) {
-          return (this.maxValue - this.sanitizeValue(val)) * this.maxPos / this.valueRange || 0;
-        }
-        return (this.sanitizeValue(val) - this.minValue) * this.maxPos / this.valueRange || 0;
       },
 
       /**
@@ -1405,20 +1460,68 @@
       },
 
       /**
-       * Translate offset to model value
+       * Translate value to pixel position
        *
-       * @param {number} offset
+       * @param {number} val
        * @returns {number}
        */
-      offsetToValue: function(offset) {
-        if (this.options.rightToLeft) {
-          return (1 - (offset / this.maxPos)) * this.valueRange + this.minValue;
-        }
-        return (offset / this.maxPos) * this.valueRange + this.minValue;
+      valueToPosition: function(val) {
+        var fn = this.linearValueToPosition;
+        if (this.options.customValueToPosition)
+          fn = this.options.customValueToPosition;
+        else if (this.options.logScale)
+          fn = this.logValueToPosition;
+
+        val = this.sanitizeValue(val);
+        var percent = fn(val, this.minValue, this.maxValue) || 0;
+        if (this.options.rightToLeft)
+          percent = 1 - percent;
+        return percent * this.maxPos;
+      },
+
+      linearValueToPosition: function(val, minVal, maxVal) {
+        var range = maxVal - minVal;
+        return (val - minVal) / range;
+      },
+
+      logValueToPosition: function(val, minVal, maxVal) {
+        val = Math.log(val);
+        minVal = Math.log(minVal);
+        maxVal = Math.log(maxVal);
+        var range = maxVal - minVal;
+        return (val - minVal) / range;
+      },
+
+      /**
+       * Translate position to model value
+       *
+       * @param {number} position
+       * @returns {number}
+       */
+      positionToValue: function(position) {
+        var percent = position / this.maxPos;
+        if (this.options.rightToLeft)
+          percent = 1 - percent;
+        var fn = this.linearPositionToValue;
+        if (this.options.customPositionToValue)
+          fn = this.options.customPositionToValue;
+        else if (this.options.logScale)
+          fn = this.logPositionToValue;
+        return fn(percent, this.minValue, this.maxValue) || 0;
+      },
+
+      linearPositionToValue: function(percent, minVal, maxVal) {
+        return percent * (maxVal - minVal) + minVal;
+      },
+
+      logPositionToValue: function(percent, minVal, maxVal) {
+        minVal = Math.log(minVal);
+        maxVal = Math.log(maxVal);
+        var value = percent * (maxVal - minVal) + minVal;
+        return Math.exp(value);
       },
 
       // Events
-
       /**
        * Get the X-coordinate or Y-coordinate of an event
        *
@@ -1449,7 +1552,7 @@
           eventPos = -this.getEventXY(event) + sliderPos;
         else
           eventPos = this.getEventXY(event) - sliderPos;
-        return (eventPos - this.handleHalfDim) * this.options.scale;
+        return eventPos * this.options.scale - this.handleHalfDim; // #346 handleHalfDim is already scaled
       },
 
       /**
@@ -1486,19 +1589,19 @@
         if (!this.range) {
           return this.minH;
         }
-        var offset = this.getEventPosition(event),
-          distanceMin = Math.abs(offset - this.minH.rzsp),
-          distanceMax = Math.abs(offset - this.maxH.rzsp);
+        var position = this.getEventPosition(event),
+          distanceMin = Math.abs(position - this.minH.rzsp),
+          distanceMax = Math.abs(position - this.maxH.rzsp);
         if (distanceMin < distanceMax)
           return this.minH;
         else if (distanceMin > distanceMax)
           return this.maxH;
         else if (!this.options.rightToLeft)
         //if event is at the same distance from min/max then if it's at left of minH, we return minH else maxH
-          return offset < this.minH.rzsp ? this.minH : this.maxH;
+          return position < this.minH.rzsp ? this.minH : this.maxH;
         else
         //reverse in rtl
-          return offset > this.minH.rzsp ? this.minH : this.maxH;
+          return position > this.minH.rzsp ? this.minH : this.maxH;
       },
 
       /**
@@ -1639,17 +1742,17 @@
        * @returns {undefined}
        */
       onMove: function(pointer, event, fromTick) {
-        var newOffset = this.getEventPosition(event),
+        var newPos = this.getEventPosition(event),
           newValue,
           ceilValue = this.options.rightToLeft ? this.minValue : this.maxValue,
           flrValue = this.options.rightToLeft ? this.maxValue : this.minValue;
 
-        if (newOffset <= 0) {
+        if (newPos <= 0) {
           newValue = flrValue;
-        } else if (newOffset >= this.maxPos) {
+        } else if (newPos >= this.maxPos) {
           newValue = ceilValue;
         } else {
-          newValue = this.offsetToValue(newOffset);
+          newValue = this.positionToValue(newPos);
           if (fromTick && angular.isNumber(this.options.showTicks))
             newValue = this.roundStep(newValue, this.options.showTicks);
           else
@@ -1690,6 +1793,11 @@
         pointer.on('keyup', angular.bind(this, this.onKeyUp));
         this.firstKeyDown = true;
         pointer.addClass('rz-active');
+
+        this.currentFocusElement = {
+          pointer: pointer,
+          ref: ref
+        };
       },
 
       onKeyUp: function() {
@@ -1702,6 +1810,7 @@
         pointer.off('keyup');
         this.tracking = '';
         pointer.removeClass('rz-active');
+        this.currentFocusElement = null
       },
 
       /**
@@ -1805,13 +1914,13 @@
        * @returns {undefined}
        */
       onDragStart: function(pointer, ref, event) {
-        var offset = this.getEventPosition(event);
+        var position = this.getEventPosition(event);
         this.dragging = {
           active: true,
-          value: this.offsetToValue(offset),
+          value: this.positionToValue(position),
           difference: this.highValue - this.lowValue,
-          lowLimit: this.options.rightToLeft ? this.minH.rzsp - offset : offset - this.minH.rzsp,
-          highLimit: this.options.rightToLeft ? offset - this.maxH.rzsp : this.maxH.rzsp - offset
+          lowLimit: this.options.rightToLeft ? this.minH.rzsp - position : position - this.minH.rzsp,
+          highLimit: this.options.rightToLeft ? position - this.maxH.rzsp : this.maxH.rzsp - position
         };
 
         this.onStart(pointer, ref, event);
@@ -1820,16 +1929,16 @@
       /**
        * getValue helper function
        *
-       * gets max or min value depending on whether the newOffset is outOfBounds above or below the bar and rightToLeft
+       * gets max or min value depending on whether the newPos is outOfBounds above or below the bar and rightToLeft
        *
        * @param {string} type 'max' || 'min' The value we are calculating
-       * @param {number} newOffset  The new offset
-       * @param {boolean} outOfBounds Is the new offset above or below the max/min?
-       * @param {boolean} isAbove Is the new offset above the bar if out of bounds?
+       * @param {number} newPos  The new position
+       * @param {boolean} outOfBounds Is the new position above or below the max/min?
+       * @param {boolean} isAbove Is the new position above the bar if out of bounds?
        *
        * @returns {number}
        */
-      getValue: function(type, newOffset, outOfBounds, isAbove) {
+      getValue: function(type, newPos, outOfBounds, isAbove) {
         var isRTL = this.options.rightToLeft,
           value = null;
 
@@ -1841,7 +1950,7 @@
               value = isRTL ? this.maxValue - this.dragging.difference : this.minValue;
             }
           } else {
-            value = isRTL ? this.offsetToValue(newOffset + this.dragging.lowLimit) : this.offsetToValue(newOffset - this.dragging.lowLimit)
+            value = isRTL ? this.positionToValue(newPos + this.dragging.lowLimit) : this.positionToValue(newPos - this.dragging.lowLimit)
           }
         } else {
           if (outOfBounds) {
@@ -1852,9 +1961,9 @@
             }
           } else {
             if (isRTL) {
-              value = this.offsetToValue(newOffset + this.dragging.lowLimit) + this.dragging.difference
+              value = this.positionToValue(newPos + this.dragging.lowLimit) + this.dragging.difference
             } else {
-              value = this.offsetToValue(newOffset - this.dragging.lowLimit) + this.dragging.difference;
+              value = this.positionToValue(newPos - this.dragging.lowLimit) + this.dragging.difference;
             }
           }
         }
@@ -1871,7 +1980,7 @@
        * @returns {undefined}
        */
       onDragMove: function(pointer, event) {
-        var newOffset = this.getEventPosition(event),
+        var newPos = this.getEventPosition(event),
           newMinValue, newMaxValue,
           ceilLimit, flrLimit,
           isUnderFlrLimit, isOverCeilLimit,
@@ -1888,28 +1997,28 @@
           flrH = this.minH;
           ceilH = this.maxH;
         }
-        isUnderFlrLimit = newOffset <= flrLimit;
-        isOverCeilLimit = newOffset >= this.maxPos - ceilLimit;
+        isUnderFlrLimit = newPos <= flrLimit;
+        isOverCeilLimit = newPos >= this.maxPos - ceilLimit;
 
         if (isUnderFlrLimit) {
           if (flrH.rzsp === 0)
             return;
-          newMinValue = this.getValue('min', newOffset, true, false);
-          newMaxValue = this.getValue('max', newOffset, true, false);
+          newMinValue = this.getValue('min', newPos, true, false);
+          newMaxValue = this.getValue('max', newPos, true, false);
         } else if (isOverCeilLimit) {
           if (ceilH.rzsp === this.maxPos)
             return;
-          newMaxValue = this.getValue('max', newOffset, true, true);
-          newMinValue = this.getValue('min', newOffset, true, true);
+          newMaxValue = this.getValue('max', newPos, true, true);
+          newMinValue = this.getValue('min', newPos, true, true);
         } else {
-          newMinValue = this.getValue('min', newOffset, false);
-          newMaxValue = this.getValue('max', newOffset, false);
+          newMinValue = this.getValue('min', newPos, false);
+          newMaxValue = this.getValue('max', newPos, false);
         }
         this.positionTrackingBar(newMinValue, newMaxValue);
       },
 
       /**
-       * Set the new value and offset for the entire bar
+       * Set the new value and position for the entire bar
        *
        * @param {number} newMinValue   the new minimum value
        * @param {number} newMaxValue   the new maximum value
@@ -1920,7 +2029,7 @@
           newMinValue = this.options.minLimit;
           newMaxValue = newMinValue + this.dragging.difference;
         }
-        if (this.options.maxLimit != null && newMaxValue > this.options.maxLimit){
+        if (this.options.maxLimit != null && newMaxValue > this.options.maxLimit) {
           newMaxValue = this.options.maxLimit;
           newMinValue = newMaxValue - this.dragging.difference;
         }
@@ -1931,12 +2040,12 @@
         if (this.range)
           this.applyHighValue();
         this.applyModel();
-        this.updateHandles('lowValue', this.valueToOffset(newMinValue));
-        this.updateHandles('highValue', this.valueToOffset(newMaxValue));
+        this.updateHandles('lowValue', this.valueToPosition(newMinValue));
+        this.updateHandles('highValue', this.valueToPosition(newMaxValue));
       },
 
       /**
-       * Set the new value and offset to the current tracking handle
+       * Set the new value and position to the current tracking handle
        *
        * @param {number} newValue new model value
        */
@@ -1991,7 +2100,7 @@
             this.applyLowValue();
           else
             this.applyHighValue();
-          this.updateHandles(this.tracking, this.valueToOffset(newValue));
+          this.updateHandles(this.tracking, this.valueToPosition(newValue));
           this.updateAriaAttributes();
           valueChanged = true;
         }
@@ -2032,19 +2141,35 @@
 
       applyPushRange: function(newValue) {
         var difference = this.tracking === 'lowValue' ? this.highValue - newValue : newValue - this.lowValue,
-          range = this.options.minRange !== null ? this.options.minRange : this.options.step;
-        if (difference < range) {
+          minRange = this.options.minRange !== null ? this.options.minRange : this.options.step,
+          maxRange = this.options.maxRange;
+        // if smaller than minRange
+        if (difference < minRange) {
           if (this.tracking === 'lowValue') {
-            this.highValue = Math.min(newValue + range, this.maxValue);
-            newValue = this.highValue - range;
+            this.highValue = Math.min(newValue + minRange, this.maxValue);
+            newValue = this.highValue - minRange;
             this.applyHighValue();
-            this.updateHandles('highValue', this.valueToOffset(this.highValue));
+            this.updateHandles('highValue', this.valueToPosition(this.highValue));
           }
           else {
-            this.lowValue = Math.max(newValue - range, this.minValue);
-            newValue = this.lowValue + range;
+            this.lowValue = Math.max(newValue - minRange, this.minValue);
+            newValue = this.lowValue + minRange;
             this.applyLowValue();
-            this.updateHandles('lowValue', this.valueToOffset(this.lowValue));
+            this.updateHandles('lowValue', this.valueToPosition(this.lowValue));
+          }
+          this.updateAriaAttributes();
+        }
+        // if greater than maxRange
+        else if (maxRange !== null && difference > maxRange) {
+          if (this.tracking === 'lowValue') {
+            this.highValue = newValue + maxRange;
+            this.applyHighValue();
+            this.updateHandles('highValue', this.valueToPosition(this.highValue));
+          }
+          else {
+            this.lowValue = newValue - maxRange;
+            this.applyLowValue();
+            this.updateHandles('lowValue', this.valueToPosition(this.lowValue));
           }
           this.updateAriaAttributes();
         }
@@ -2159,7 +2284,7 @@
   /**
    * @name jqLite
    *
-   * @property {number|undefined} rzsp rzslider label position offset
+   * @property {number|undefined} rzsp rzslider label position position
    * @property {number|undefined} rzsd rzslider element dimension
    * @property {string|undefined} rzsv rzslider label value/text
    * @property {Function} css

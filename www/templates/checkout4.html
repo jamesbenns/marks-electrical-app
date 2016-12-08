@@ -1,0 +1,53 @@
+
+            <div ng-if="checkout.checkout.delivery.type == 'D' || checkout.checkout.delivery.type == 1">
+                <form name="stripeForm" id="payment-form" class="list">
+
+                  <div class="item item-divider">
+                     Card Details
+                  </div>
+
+                  <label class="item item-input">
+                  	<span class="input-label">Card number</span>
+                  	<input required type="tel" data-stripe="number">
+                  </label>
+                  <label class="item item-input">
+                  	<span class="input-label">Expiry month</span>
+                  	<input required type="tel" placeholder="MM" data-stripe="exp_month">
+                  </label>
+                  <label class="item item-input">
+                  	<span class="input-label">Expiry year</span>
+                  	<input required type="tel" data-stripe="exp_year" placeholder="YY">
+                  </label>
+                  <label class="item item-input">
+                  	<span class="input-label">CVV/Security code</span>
+                  	<input required type="tel" data-stripe="cvc">
+                  </label>
+							</form>
+
+              <button class="button button-block button-me add-to-cart" ng-disabled="orderProcessing" ng-click="submit()">
+                Place order
+              </button>
+							<p style="text-align: center; color: red;" id="errors"></p>
+
+					  </div>
+            <div ng-if="checkout.checkout.delivery.type == 'C'">
+
+                <div class="list">
+
+                  <label class="item item-input item-select">
+                    <div class="input-label">Choose date</div>
+                    <select required ng-model="checkout.checkout.delivery" ng-options="date as date.desc for date in collectionDates">
+                    </select>
+                  </label>
+
+                </div>
+
+              <button class="button button-block button-me add-to-cart" ng-disabled="!checkout.checkout.delivery.date" ng-click="createOrder()">
+              Place order
+              </button>
+
+            </div>
+
+    <div style="text-align: center;" ng-show="orderProcessing">
+        <ion-spinner class="spinner-dark" icon="crescent"></ion-spinner>
+    </div>

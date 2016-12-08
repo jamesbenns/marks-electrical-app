@@ -2,9 +2,6 @@
     <ion-side-menu-content>
         <ion-nav-bar class="bar-light">
             <ion-nav-back-button></ion-nav-back-button>
-            <ion-nav-title>
-                <img class="title-image" src="img/logo.png"/>
-            </ion-nav-title>
             <ion-nav-buttons side="left">
                 <button class="button button-icon button-clear ion-navicon" menu-toggle="left"></button>
             </ion-nav-buttons>
@@ -17,7 +14,7 @@
         <ion-nav-view name="menuContent"></ion-nav-view>
     </ion-side-menu-content>
     <ion-side-menu side="left" is-enabled="isEnabled()">
-        <ion-header-bar class="bar-dark" title="Cart">
+        <ion-header-bar class="bar-dark">
             <h1 class="title">Menu</h1>
         </ion-header-bar>
         <ion-content ng-controller="MenuCtrl" style="background: #eee;">
@@ -32,66 +29,42 @@
                     Contact
                 
                 </ion-item>
-                <ion-item menu-close href="#/app/track" class="item-icon-left">
+                <ion-item class="item-icon-left">
                     <i class="icon ion-android-locate"></i>
-                    Track Order
+                    Track Order <span style="font-size: 10px; color: red;">coming soon!</span>
                 
                 </ion-item>
-                <ion-item class="item-icon-left" ng-click="login()">
+                <ion-item class="item-icon-left">
                     <i class="icon ion-locked"></i>
-                    Trade Login
+                    Trade Login <span style="font-size: 10px; color: red;">coming soon!</span>
                 
                 </ion-item>
             </ion-list>
         </ion-content>
     </ion-side-menu>
     <ion-side-menu ng-controller="MenuCtrl" side="right" style="background: #eee;">
-        <ion-header-bar class="bar-dark" title="Cart">
-            <h1 class="title">Cart</h1>
+        <ion-header-bar class="bar-dark">
+            <h1 ng-if="!cart.length && !recentProducts.length" class="title">Cart Empty</h1>
+            <h1 ng-if="!cart.length && recentProducts.length" class="title">Recent Products</h1>
+            <h1 ng-if="cart.length" class="title">Cart</h1>
         </ion-header-bar>
         <ion-content>
-            <div class="list">
-                <div ng-repeat="product in line" ng-if="product.type == 'item'" style="margin-bottom: 10px;">
-                    <div class="item item-thumbnail-left text-ellipsis">
-                        <img ng-click="setProduct(product.item)" ng-src="http://s3-eu-west-1.amazonaws.com/media.markselectrical.co.uk/item-images/zoom/{{product.item.sku}}.jpg">
-                        <h2>{{product.item.name}}</h2>
-                        <p>£{{product.item.price}}</p>
-                        <div class="button-bar">
-                            <button class="button icon icon ion-minus-round button-small" ng-click="changeQuantity('down', product.item.sku)"></button>
-                            <div class="quantity">{{product.qty}}</div>
-                            <button class="button icon icon ion-plus-round button-small" ng-click="changeQuantity('up', product.item.sku)"></button>
-                            <button class="button icon icon ion-close button-assertive button-small" ng-click="removeItem(product.item.sku)"></button>
-                        </div>
-                    </div>
-                    <li class="item item-checkbox" ng-if="product.addons.warranty.length">
-                        <div class="checkbox">
-                            <input type="checkbox" ng-model="product.addons.warranty[0].on">
-                        </div>
-                        <div stop-event ng-click="moreInfo(product.addons.warranty[0].name, product.addons.warranty[0].price)">
-                            <h2>{{product.addons.warranty[0].name}}</h2>
-                            <p>£{{product.addons.warranty[0].price}}</p>
-                        </div>
-                    </li>
-                </div>
-            </div>
-            <div ng-hide="line.length">
-                <p style="text-align: center;" ng-hide="recentProducts.length">Your cart is empty</p>
+            <div ng-hide="cart.length">
                 <div ng-show="recentProducts.length">
-                    <p style="text-align: center;">Your cart is empty, but here are some products you viewed recently:</p>
-                    <ion-slide-box on-slide-changed="slideHasChanged($index)">
-                        <ion-slide class="padding-16" ng-repeat="product in recentProducts">
+                    <ion-slides slider="data.slider">
+                        <ion-slide-page class="padding-16" ng-repeat="product in recentProducts">
                             <div style="margin: 0px 0px 40px 0px;" class="card product-card">
                                 <div class="item recent-product-img item-image">
                                     <div style="z-index: -1; padding-top: 100%; position: relative;">
                                         <ion-spinner icon="crescent" class="text-center spinner-placeholder"></ion-spinner>
                                     </div>
-                                    <img ng-src="http://s3-eu-west-1.amazonaws.com/media.markselectrical.co.uk/item-images/zoom/{{product.url.split('_')[0]}}.jpg"/>
+                                    <img ng-src="{{product.images[0]}}"/>
                                 </div>
                                 <div class="item">
-                                    <div ng-click="setProduct(product)">
+                                    <div ng-click="productService.goToProduct(product)">
                                         <h2>{{product.name}}</h2>
                                         <p>
-                                            £{{product.price}}
+                                            {{product.price | currency : '£'}}
                                          
                                             <span ng-show="product.stock" class="balanced">
                                                 <i class="icon ion-checkmark"></i>
@@ -107,21 +80,39 @@
                                         <div ng-if="product.rating">
                                             <stars rating="product.rating"></stars>
                                             ({{product.numberOfReviews}})
-                              
-                                        
                                         </div>
                                     </div>
-                                    <button class="button button-block button-me button-small add-to-cart" ng-click="addToCart(product)" ng-disabled="checkCart(currentProduct.url.split('_')[0])">Add to Cart
+                                    <button class="button button-block button-balanced button-small" ng-click="cartService.addToCartByObject(product)" ng-disabled="cartService.isProductInCart(currentProduct.sku)">Add to Cart
                            </button>
                                 </div>
                             </div>
-                        </ion-slide>
-                    </ion-slide-box>
+                        </ion-slide-page>
+                    </ion-slides>
                 </div>
             </div>
+
+            <div class="list">
+                <div ng-repeat="product in cart" style="margin-bottom: 10px;">
+                    <div class="item item-thumbnail-left text-ellipsis">
+                        <img ng-click="setProduct(product)" ng-src="{{product.images[0]}}">
+                        <h2>{{product.name}}</h2>
+                        <p>{{product.price | currency : '£'}}</p>
+                        <div class="button-bar">
+                            <button class="button icon icon ion-minus-round button-small" ng-click="cartService.quantityDown(product.sku)"></button>
+                            <div class="quantity">{{product.quantity}}</div>
+                            <button class="button icon icon ion-plus-round button-small" ng-click="cartService.quantityUp(product.sku)"></button>
+                            <button class="button icon icon ion-close button-assertive button-small" ng-click="cartService.removeFromCart(product.sku)"></button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="padding" ng-show="cart.length">
+                <button class="button button-block button-balanced" style="margin: 0px;" ng-click="checkoutModal.show()">
+                    Checkout ({{cartService.total() | currency : '£'}})
+                </button>
+                </div>
+
+            </div>
         </ion-content>
-        <div style="z-index: 9999;" ng-show="line.length" ng-click="checkOut()" class="bar bar-footer button-me">
-            <div class="title">Checkout: {{cartTotal() | currency : '£'}}</div>
-        </div>
     </ion-side-menu>
 </ion-side-menus>

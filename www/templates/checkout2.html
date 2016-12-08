@@ -1,0 +1,138 @@
+            <div ng-if="checkout.checkout.delivery.type == 'D' || checkout.checkout.delivery.type !== 'C' ">
+
+               <form name="step2Form" class="list">
+                  <div class="item item-divider">
+                     Delivery Address
+                  </div>
+                  <label class="item item-input item-select">
+                     <div class="input-label">
+                        Address
+                     </div>
+                     <select required ng-change="setAddress('delivery')" ng-model="customer.deliveryAddress" ng-options="address.StreetAddress for address in deliveryAddresses">
+											          <option value="" disabled>Choose Address</option>
+                     </select>
+                  </label>
+
+                  <label class="item item-input">
+                  	<span class="input-label">First Name</span>
+                  	<input required type="text" ng-model="checkout.checkout.customer.delivery.firstName">
+                  </label>
+                  <label class="item item-input">
+                  	<span class="input-label">Last Name</span>
+                  	<input required type="text" ng-model="checkout.checkout.customer.delivery.lastName">
+                  </label>
+                  <label class="item item-input">
+                  	<span class="input-label">Email</span>
+                  	<input required type="email" ng-model="checkout.checkout.customer.delivery.email">
+                  </label>
+                  <label class="item item-input">
+                  	<span class="input-label">Phone Number</span>
+                  	<input required type="tel" ng-model="checkout.checkout.customer.delivery.phone">
+                  </label>
+                  <label class="item item-input">
+                  	<span class="input-label">Company Name</span>
+                  	<input type="text" ng-model="checkout.checkout.customer.delivery.company">
+                  </label>
+               </form>
+
+              <form name="billAddress" class="list">
+                  <div class="item item-divider">
+                     Billing address
+                  </div>
+                  <li class="item item-toggle item-text-wrap">
+                     Same as delivery address?
+                     <label class="toggle">
+                        <input type="checkbox" ng-model="customer.sameAddresses">
+                        <div class="track">
+                           <div class="handle"></div>
+                        </div>
+                     </label>
+                  </li>
+                  <div ng-if="!customer.sameAddresses">
+										<label class="item item-input">
+											<span class="input-label">First Name</span>
+											<input required type="text" ng-model="checkout.checkout.customer.billing.firstName">
+										</label>
+										<label class="item item-input">
+											<span class="input-label">Last Name</span>
+											<input required type="text" ng-model="checkout.checkout.customer.billing.lastName">
+										</label>
+										<label class="item item-input">
+											<span class="input-label">Email</span>
+											<input required type="email" ng-model="checkout.checkout.customer.billing.email">
+										</label>
+										<label class="item item-input">
+											<span class="input-label">Phone Number</span>
+											<input required type="tel" ng-model="checkout.checkout.customer.billing.phone">
+										</label>
+										<label class="item item-input">
+											<span class="input-label">Company Name</span>
+											<input type="text" ng-model="checkout.checkout.customer.billing.companyName">
+										</label>
+
+										<label class="item item-input">
+											<span class="input-label">Postcode</span>
+											<input type="text" ng-keyup="checkBillingPostcode()" ng-model="checkout.checkout.customer.billing.postcode">
+										</label>
+										<label class="item item-input item-select" ng-show="billingAddresses">
+											<div class="input-label">
+													Address
+											</div>
+
+                     <select ng-if="billingAddresses" ng-change="setAddress('billing')" ng-model="customer.billingAddress" ng-options="address.StreetAddress for address in billingAddresses">
+											<option value="" disabled>Choose Address</option>
+                     </select>
+										</label>
+
+                  </form>
+               </div>
+
+               <button class="button button-block button-me add-to-cart" ng-disabled="step2Form.$invalid || (!customer.sameAddresses && (billAddress.$invalid || !checkout.checkout.customer.billing.street))" ng-click="setStep(3)">
+               Continue
+               </button>
+            </div>
+            <div ng-if="checkout.checkout.delivery.type == 'C'">
+               <form name="typeCForm" class="list">
+                  <div class="item item-divider">
+                     Billing Address
+                  </div>
+                  <label class="item item-input">
+                  	<span class="input-label">First Name</span>
+                  	<input required type="text" ng-model="checkout.checkout.customer.billing.firstName">
+                  </label>
+                  <label class="item item-input">
+                  	<span class="input-label">Last Name</span>
+                  	<input required type="text" ng-model="checkout.checkout.customer.billing.lastName">
+                  </label>
+                  <label class="item item-input">
+                  	<span class="input-label">Email</span>
+                  	<input required type="email" ng-model="checkout.checkout.customer.billing.email">
+                  </label>
+                  <label class="item item-input">
+                  	<span class="input-label">Phone Number</span>
+                  	<input required type="tel" ng-model="checkout.checkout.customer.billing.phone">
+                  </label>
+                  <label class="item item-input">
+                  	<span class="input-label">Company Name</span>
+                  	<input type="text" ng-model="checkout.checkout.customer.billing.companyName">
+                  </label>
+
+									<label class="item item-input">
+										<span class="input-label">Postcode</span>
+										<input type="text" ng-keyup="checkBillingPostcode()" ng-model="checkout.checkout.customer.billing.postcode">
+									</label>
+									<label class="item item-input item-select" ng-show="billingAddresses">
+										<div class="input-label">
+												Address
+										</div>
+                     <select ng-if="billingAddresses" ng-change="setAddress('billing')" ng-model="customer.billingAddress" ng-options="address.StreetAddress for address in billingAddresses">
+											          <option value="" disabled>Choose Address</option>
+                     </select>
+										</label>
+									</label>
+
+               </form>
+               <button class="button button-block button-me add-to-cart" ng-disabled="typeCForm.$invalid || !checkout.checkout.customer.billing.street" ng-click="setStep(3)">
+               Continue
+               </button>
+            </div>

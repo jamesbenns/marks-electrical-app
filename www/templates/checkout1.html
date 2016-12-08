@@ -1,0 +1,30 @@
+<div class="list">
+	<div class="item item-divider">
+		Delivery method
+	</div>
+	<ion-radio name="clickandcollect" ng-click="getCollectionDates()" ng-model="checkout.checkout.delivery.type" class="item-text-wrap" ng-value="'C'"><b>Click&Collect</b><br>Collect your products from our warehouse 8am - 8pm Monday to Friday or 10am - 4pm on the weekend</ion-radio>
+	<ion-radio name="delivery" class="item-text-wrap" ng-model="checkout.checkout.delivery.type" ng-value="'D'"><b>Free delivery</b><br>Select this option and enter your postcode below to see if you qualify for free delivery.</ion-radio>
+</div>
+
+<div class="list" ng-show="checkout.checkout.delivery.type == 'D' || checkout.checkout.delivery.type == 1">
+	<label class="item item-input">
+	<span class="input-label">Delivery Postcode</span>
+	<input type="text" ng-keyup="checkPostcode()" ng-model="checkout.checkout.customer.delivery.postcode">
+	</label>
+</div>
+
+<ion-spinner ng-if="spinner1"></ion-spinner>
+
+<div class="list" ng-show="checkout.checkout.delivery.type == 'D' || checkout.checkout.delivery.type == 1" ng-if="dates" style="margin-bottom: 20px;">
+	<label class="item item-input item-select">
+		<div class="input-label">
+		Choose date
+		</div>
+		<select required ng-model="checkout.checkout.delivery" ng-options="date as date.desc for date in dates">
+		</select>
+	</label>
+</div>
+
+<button class="button button-block button-me add-to-cart" ng-click="customer.step = 2" ng-disabled="!checkout.checkout.delivery.date && checkout.checkout.delivery.type != 'C'">
+Continue
+</button>
